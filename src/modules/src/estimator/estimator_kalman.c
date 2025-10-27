@@ -154,6 +154,7 @@ static Axis3f gyroLatest;
 static OutlierFilterTdoaState_t outlierFilterTdoaState;
 static OutlierFilterLhState_t sweepOutlierFilterState;
 
+static uint8_t kalman_useExtQuat = 0;  // 0=외부 자세(Quaternion) 무시, 1=사용
 
 // Indicates that the internal state is corrupt and should be reset
 bool resetEstimation = false;
@@ -226,6 +227,9 @@ static void kalmanTask(void* parameters) {
     if (resetEstimation) {
       estimatorKalmanInit();
       resetEstimation = false;
+
+      coreParams.attitudeReversion = 0.0f;
+      DEBUG_PRINT("Kalman attitude reversion OFF (Reset)\n");
     }
 
     #ifdef CONFIG_ESTIMATOR_KALMAN_GENERAL_PURPOSE
@@ -316,10 +320,29 @@ static void updateQueuedMeasurements(const uint32_t nowMs, const bool quadIsFlyi
         }
         break;
       case MeasurementTypePosition:
-        kalmanCoreUpdateWithPosition(&coreData, &m.data.position);
+        {
+          // --- [Custom Patch] Disable attitude coupling from external position ---
+          kalmanCoreData_t coreDataCopy = coreData;
+
+          kalmanCoreUpdateWithPosition(&coreData, &m.data.position);
+
+          // attitude (quaternion) restore
+          for (int i = 0; i < 4; i++) {
+              coreData.q[i] = coreDataCopy.q[i];
+          }
+
+          // optional: attitude error (delta) restore
+          coreData.S[KC_STATE_D0] = coreDataCopy.S[KC_STATE_D0];
+          coreData.S[KC_STATE_D1] = coreDataCopy.S[KC_STATE_D1];
+          coreData.S[KC_STATE_D2] = coreDataCopy.S[KC_STATE_D2];
+        }
         break;
       case MeasurementTypePose:
-        kalmanCoreUpdateWithPose(&coreData, &m.data.pose);
+        if (kalman_useExtQuat) {
+          kalmanCoreUpdateWithPose(&coreData, &m.data.pose);
+        } else {
+          kalmanCoreUpdateWithPosition(&coreData, &m.data.position);
+        }
         break;
       case MeasurementTypeDistance:
         if(robustTwr){
@@ -367,15 +390,9 @@ static void updateQueuedMeasurements(const uint32_t nowMs, const bool quadIsFlyi
 // Called when this estimator is activated
 void estimatorKalmanInit(void)
 {
-  #ifdef CONFIG_DECK_LOCO_2D_POSITION
-  coreParams.attitudeReversion = 0.0f;
-  #else
-  if (deckGetRequiredKalmanEstimatorAttitudeReversionOff())
-  {
-    coreParams.attitudeReversion = 0.0f;
-    DEBUG_PRINT("Attitude reversion deactivated by deck\n");
-  }
-  #endif
+  // --- Disable automatic attitude reversion ---
+  coreParams.attitudeReversion = 0.001f;
+  DEBUG_PRINT("Kalman attitude reversion OFF (Init)\n");
 
   axis3fSubSamplerInit(&accSubSampler, GRAVITY_MAGNITUDE);
   axis3fSubSamplerInit(&gyroSubSampler, DEG_TO_RAD);
@@ -549,6 +566,10 @@ PARAM_GROUP_START(kalman)
  * @brief Process noise for z acceleration
  */
   PARAM_ADD_CORE(PARAM_FLOAT | PARAM_PERSISTENT, pNAcc_z, &coreParams.procNoiseAcc_z)
+/**
+ * @brief Nonzero to use external quaternion (pose) updates
+ */
+  PARAM_ADD_CORE(PARAM_UINT8, useExtQuat, &kalman_useExtQuat)
   /**
  * @brief Process noise for velocity
  */

@@ -765,7 +765,7 @@ void kalmanCoreExternalizeState(const kalmanCoreData_t* this, state_t *state, co
       .y = this->R[1][0]*acc->x + this->R[1][1]*acc->y + this->R[1][2]*acc->z,
       .z = this->R[2][0]*acc->x + this->R[2][1]*acc->y + this->R[2][2]*acc->z - 1
   };
-
+  
   // convert the new attitude into Euler YPR
   float yaw = atan2f(2*(this->q[1]*this->q[2]+this->q[0]*this->q[3]) , this->q[0]*this->q[0] + this->q[1]*this->q[1] - this->q[2]*this->q[2] - this->q[3]*this->q[3]);
   float pitch = asinf(-2*(this->q[1]*this->q[3] - this->q[0]*this->q[2]));
