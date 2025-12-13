@@ -2,54 +2,59 @@
 
 This project contains the source code for the firmware used in the Crazyflie range of platforms, including the Crazyflie 2.x and the Roadrunner.
 
-# `app_fs`: Spring Tension Estimation (World Frame)
+# ⚙️ `app_fs`: Spring Tension Estimation (World Frame)
 
-이 모듈은 Crazyflie 펌웨어에서 월드 좌표계(World Frame) 기반의 스프링 장력 벡터($\vec{F}_S^W$)를 실시간으로 추정하는 애플리케이션입니다.
+This module implements a real-time application within the Crazyflie firmware to estimate the **Spring Tension Vector** ($\vec{F}_S^W$) in the World Coordinate Frame.
 
 ---
 
-## 1. Methodology (방법론)
+## 1. Methodology
 
-스프링 장력 추정은 뉴턴의 제2법칙($\Sigma \vec{F} = m\vec{a}$)에 기반하며, 비행체에 작용하는 모든 힘($\Sigma \vec{F}$)에서 중력($m\vec{g}$)과 추력($\vec{F}_T$)을 제외한 잔여 힘을 스프링 장력으로 간주합니다.
+The spring tension is estimated based on Newton's Second Law ($\Sigma \vec{F} = m\vec{a}$). It calculates the remaining force acting on the drone after accounting for gravity ($m\vec{g}$) and thrust ($\vec{F}_T$).
 
-### Dynamic Acceleration (동역학적 가속도)
+### Dynamic Acceleration Approach
+
+The equation is formulated using the dynamic acceleration ($\vec{a}_{dyn}^W$), which is the total acceleration with gravity removed:
 
 $$\vec{F}_S^W = \vec{F}_T^W - m\vec{a}_{dyn}^W$$
 
-여기서 $\vec{a}_{dyn}^W$는 월드 좌표계에서 중력 성분이 제거된 순수한 동역학적 가속도입니다.
+Where the dynamic acceleration in the World Frame is derived from the Body Frame IMU reading and the MoCap quaternion:
 
 $$\vec{a}_{dyn}^W = \vec{R}(q) \cdot \vec{a}_{body} - \vec{g}^W$$
 
-* $\vec{R}(q)$: MoCap 쿼터니언에서 파생된 회전 행렬 (Body $\to$ World).
-* $\vec{a}_{body}$: IMU에서 측정된 Raw 가속도 (Body Frame, 단위 $g$ 사용).
-* $\vec{g}^W$: 월드 좌표계 중력 벡터 (Z축 방향). 
+* $\vec{R}(q)$: Rotation matrix derived from the MoCap quaternion (Body $\to$ World).
+* $\vec{a}_{body}$: Raw acceleration measured by the IMU in the Body Frame (units of $G$).
+* $\vec{g}^W$: Gravity vector in the World Frame (downward on the Z-axis). 
 
-### 2. Implementation Details (구현 세부 사항)
+### 2. Implementation Details
 
-| 기능 | 설명 | 사용된 데이터 소스 |
+| Feature | Description | Data Source |
 | :--- | :--- | :--- |
-| **자세 (Rotation)** | 외부 위치 서비스(MoCap)의 쿼터니언(`locSrv.q*`)을 사용하여, Body Frame의 가속도 및 추력 벡터를 World Frame으로 변환합니다. | `locSrv.q*` |
-| **추력 (Thrust)** | PWM 커맨드(`stabilizer.thrust`)를 2차 다항식 캘리브레이션 모델을 통해 힘(gf)으로 변환합니다. | `stabilizer.thrust` |
-| **필터링 (Filtering)** | 추정된 원시 장력($\vec{F}_{S, raw}^W$)의 노이즈를 줄이기 위해 **Moving Average Filter**가 적용됩니다. | `fs.maN` 파라미터 |
+| **Attitude (Rotation)** | The quaternion (`locSrv.q*`) from the external positioning service (MoCap) is used to transform the Body Frame acceleration and thrust vectors into the World Frame. | `locSrv.q*` |
+| **Thrust (Scalar)** | The PWM command (`stabilizer.thrust`) is converted into force [gf] using a **calibrated second-order polynomial model**. | `stabilizer.thrust` |
+| **Filtering (MA)** | To reduce noise in the raw tension estimate ($\vec{F}_{S, raw}^W$), an **Axis-by-Axis Moving Average Filter** is applied. | `fs.maN` parameter |
 
-### 3. Log Output & Parameters (로그 및 파라미터)
+### 3. Log Output & Parameters
 
-#### Parameters (사용자 설정 파라미터)
+#### Parameters (User Configuration)
 
 | Group.Name | Type | Unit | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `fs.mass` | Float | [kg] | `0.04f` | 드론의 질량 |
-| `fs.useMA` | Uint8 | N/A | `1` | 이동 평균 필터 사용 여부 (0: Off, 1: On) |
-| `fs.maN` | Int32 | [samples] | `15` | 이동 평균 윈도우 길이 (1..200). 100Hz 기준 15 samples = 0.15초 |
+| `fs.mass` | Float | [kg] | `0.04f` | Mass of the drone. |
+| `fs.useMA` | Uint8 | N/A | `1` | Enable/Disable Moving Average Filter (0: Off, 1: On). |
+| `fs.maN` | Int32 | [samples] | `15` | Moving Average window length (clamped 1..200). (e.g., 15 samples at 100Hz = 0.15s). |
 
-#### Log Variables (추출 로그)
+#### Log Variables (Available Logs)
 
-`log.fs` 그룹을 통해 다음 값들을 확인할 수 있습니다.
+The following values are available for logging under the `log.fs` group.
 
 | Name | Type | Unit | Description |
 | :--- | :--- | :--- | :--- |
-| `Fsx_raw`, `Fsy_raw`, `Fsz_raw` | Float | [gf] | 필터링되지 않은 원시 스프링 장력 |
-| **`Fsx`, `Fsy`, `Fsz`** | Float | [gf] | **이동 평균 필터가 적용된 최종 스프링 장력** |
+| `Fsx_raw`, `Fsy_raw`, `Fsz_raw` | Float | [gf] | Raw spring tension before filtering. |
+| **`Fsx`, `Fsy`, `Fsz`** | Float | [gf] | **Final spring tension after Moving Average filtering.** |
+| `Ft` | Float | [gf] | Scaled thrust magnitude from PWM. |
+| `FTwx`, `FTwy`, `FTwz` | Float | [gf] | World Frame Thrust Vector ($\vec{F}_T^W$) components (Debug). |
+| `maw_dx`, `maw_dy`, `maw_dz` | Float | [gf] | Mass times Dynamic Acceleration ($m\vec{a}_{dyn}^W$) components (Debug). |
 | `Ft` | Float | [gf] | PWM 기반 추력 크기 스칼라 |
 | `FTwx`, `FTwy`, `FTwz` | Float | [gf] | 월드 좌표계 추력 벡터($\vec{F}_T^W$) 성분 (Debug) |
 | `maw_dx`, `maw_dy`, `maw_dz` | Float | [gf] | 질량 곱하기 동역학적 가속도($m\vec{a}_{dyn}^W$) 성분 (Debug) |
