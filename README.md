@@ -10,13 +10,13 @@ This module implements a real-time application within the Crazyflie firmware to 
 
 ## 1. Methodology
 
-The spring tension is estimated based on Newton's Second Law ($\Sigma \vec{F} = m\vec{a}$). It calculates the remaining force acting on the drone after accounting for gravity ($m\vec{g}$) and thrust ($\vec{F}_T$).
+The spring tension is estimated based on Newton's Second Law ($\Sigma \vec{f} = m\vec{a}$). It calculates the remaining force acting on the drone after accounting for gravity ($m\vec{g}$) and thrust ($\vec{f}_t$).
 
 ### Dynamic Acceleration Approach
 
 The equation is formulated using the dynamic acceleration ($\vec{a}_{dyn}^W$), which is the total acceleration with gravity removed:
 
-$$\vec{F}_S^W = \vec{F}_T^W - m\vec{a}_{dyn}^W$$
+$$\vec{f}_s^W = \vec{f}_t^W - m\vec{a}_{dyn}^W$$
 
 Where the dynamic acceleration in the World Frame is derived from the Body Frame IMU reading and the MoCap quaternion:
 
