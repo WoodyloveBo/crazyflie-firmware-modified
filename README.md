@@ -2,37 +2,30 @@
 
 This project contains the source code for the firmware used in the Crazyflie range of platforms, including the Crazyflie 2.x and the Roadrunner.
 
-### Crazyflie 1.0 support
+### Changes
 
-The 2017.06 release was the last release with Crazyflie 1.0 support. If you want
-to play with the Crazyflie 1.0 and modify the code, please clone this repo and
-branch off from the 2017.06 tag.
+App layer (Spring Tension Estimation)
+-. crazyflie-firmware/examples/app_fs/src/app_fs.c
 
-## Building and Flashing
-See the [building and flashing instructions](https://github.com/bitcraze/crazyflie-firmware/blob/master/docs/building-and-flashing/build.md) in the github docs folder.
+add Log :
+- Fsx : Spring Tension Estimation value x
+- Fsy : Spring Tension Estimation value y
+- Fsz : Spring Tension Estimation value z
 
+- FTwx : Thrust Estimation value x
+- FTwy : Thrust Estimation value y
+- FTwz : Thrust Estimation value z
 
-## Official Documentation
+- maw_dx : mass * acceleration value x 
+- maw_dy : mass * acceleration value y 
+- maw_dz : mass * acceleration value z
 
-Check out the [Bitcraze crazyflie-firmware documentation](https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/) on our website.
+### Complie & build.
 
-## Generated documentation
+cd crazyflie-firmware/examples/app_fs : Move to the app layer.
 
-The easiest way to generate the API documentation is to use the [toolbelt](https://github.com/bitcraze/toolbelt)
+make clean : Erase previous debris.
 
-```tb build-docs```
+make : Build it completely from scratch.
 
-and to view it in a web page
-
-```tb docs```
-
-## Contribute
-Go to the [contribute page](https://www.bitcraze.io/contribute/) on our website to learn more.
-
-### Test code for contribution
-
-To run the tests please have a look at the [unit test documentation](https://www.bitcraze.io/documentation/repository/crazyflie-firmware/master/development/unit_testing/).
-
-## License
-
-The code is licensed under LGPL-3.0
+make cload : The finished product is baked into the crazyflie.
